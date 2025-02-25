@@ -1,25 +1,41 @@
 from fastapi import FastAPI, Request
-from pdfParser import extract_invoice_data  # Import only parsing (calculations are separate)
+import json
 import requests
 import os
 from dotenv import load_dotenv
 
-# ✅ Load .env file from the .env directory inside GHL
+# ✅ Load Environment Variables from `.env`
 dotenv_path = os.path.join(os.path.dirname(__file__), "../.env/.env")
 load_dotenv(dotenv_path=dotenv_path)
 
-# ✅ Get OAuth Credentials from .env
-CLIENT_ID = os.getenv("GHL_CLIENT_ID")
-CLIENT_SECRET = os.getenv("GHL_CLIENT_SECRET")
-AUTH_URL = os.getenv("GHL_AUTH_URL")
-
-# ✅ Permanent Webhook URL (Replace with your Render URL)
-WEBHOOK_URL = "https://your-app-name.onrender.com/webhook/invoice"  # Replace with actual Render URL
-
+# ✅ FastAPI App Initialization
 app = FastAPI()
 
-# ✅ Function to Get OAuth Access Token
+# ✅ Webhook Route to Receive Invoices from GHL
+@app.post("/webhook/invoice")
+async def receive_invoice_webhook(request: Request):
+    try:
+        invoice_data = await request.json()
+        print("📥 Received Invoice Webhook:", json.dumps(invoice_data, indent=4))
+
+        # TODO: Process invoice data here (parse PDF, extract details, etc.)
+
+        return {"status": "success", "message": "Invoice received"}
+    except Exception as e:
+        print(f"❌ Error processing webhook: {e}")
+        return {"status": "error", "message": str(e)}
+
+# ✅ Simple Homepage to Prevent 404
+@app.get("/")
+def home():
+    return {"message": "Welcome to the Invoice Processing API"}
+
+# ✅ Function to Get OAuth Access Token from GoHighLevel
 def get_ghl_access_token():
+    CLIENT_ID = os.getenv("GHL_CLIENT_ID")
+    CLIENT_SECRET = os.getenv("GHL_CLIENT_SECRET")
+    AUTH_URL = os.getenv("GHL_AUTH_URL")
+
     payload = {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
@@ -34,7 +50,7 @@ def get_ghl_access_token():
         print(f"❌ Failed to get GHL Access Token: {response.text}")
         return None
 
-# ✅ Update GoHighLevel Webhook (Using Permanent Render URL)
+# ✅ Automatically Update Webhook in GoHighLevel
 def update_ghl_webhook():
     access_token = get_ghl_access_token()
     
@@ -46,7 +62,7 @@ def update_ghl_webhook():
 
     payload = {
         "event": "invoice_paid",
-        "url": WEBHOOK_URL  # Use Render URL instead of Ngrok
+        "url": "https://ghl-ldb2.onrender.com/webhook/invoice"  # Fixed URL for Render Deployment
     }
 
     headers = {
@@ -64,23 +80,8 @@ def update_ghl_webhook():
 # ✅ Run webhook update when script starts
 update_ghl_webhook()
 
-# ✅ FastAPI Endpoint: Process Invoice
-@app.post("/process_invoice")
-async def process_invoice(request: Request):
-    data = await request.json()
-    print("📥 Received invoice:", data)
-
-    pdf_path = "C:\\Users\\ryanc\\OneDrive\\Desktop\\GHL\\work_order.pdf"
-    extracted_text = extract_invoice_data(pdf_path)
-
-    return {"status": "success", "extracted_data": extracted_text}
-
 # ✅ Start FastAPI Server
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-@app.get("/")
-def home():
-    return {"message": "Welcome to the Invoice Processing API"}
 
