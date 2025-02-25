@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from pdfParser import extract_invoice_data  # Import only parsing (calculations are separate)
-from pyngrok import ngrok
 import requests
 import os
 from dotenv import load_dotenv
@@ -13,6 +12,9 @@ load_dotenv(dotenv_path=dotenv_path)
 CLIENT_ID = os.getenv("GHL_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GHL_CLIENT_SECRET")
 AUTH_URL = os.getenv("GHL_AUTH_URL")
+
+# ✅ Permanent Webhook URL (Replace with your Render URL)
+WEBHOOK_URL = "https://your-app-name.onrender.com/webhook/invoice"  # Replace with actual Render URL
 
 app = FastAPI()
 
@@ -32,17 +34,7 @@ def get_ghl_access_token():
         print(f"❌ Failed to get GHL Access Token: {response.text}")
         return None
 
-# ✅ Start Ngrok and Get Public URL
-def start_ngrok():
-    ngrok.set_auth_token("2tGvwRXMaV2Cl0GKSvnHsVXOcNZ_6g1LyFMyLEUnTwuwSZKHQ")  # Your Ngrok Token
-    tunnel = ngrok.connect(3000)  # Expose local port 3000
-    return tunnel.public_url
-
-# ✅ Automatically Start Ngrok
-ngrok_url = start_ngrok()
-print(f"🚀 Ngrok is running at: {ngrok_url}")
-
-# ✅ Automatically Update GoHighLevel Webhook with OAuth
+# ✅ Update GoHighLevel Webhook (Using Permanent Render URL)
 def update_ghl_webhook():
     access_token = get_ghl_access_token()
     
@@ -54,7 +46,7 @@ def update_ghl_webhook():
 
     payload = {
         "event": "invoice_paid",
-        "url": f"{ngrok_url}/webhook/invoice"
+        "url": WEBHOOK_URL  # Use Render URL instead of Ngrok
     }
 
     headers = {
@@ -78,7 +70,6 @@ async def process_invoice(request: Request):
     data = await request.json()
     print("📥 Received invoice:", data)
 
-    # Example: Extract invoice text
     pdf_path = "C:\\Users\\ryanc\\OneDrive\\Desktop\\GHL\\work_order.pdf"
     extracted_text = extract_invoice_data(pdf_path)
 
