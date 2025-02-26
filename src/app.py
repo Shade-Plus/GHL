@@ -1,23 +1,39 @@
-from fastapi import FastAPI, Request
-import json
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import HTMLResponse
+import fitz  # PyMuPDF
+from pathlib import Path
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 
 app = FastAPI()
 
-@app.post("/webhook/invoice")
-async def receive_invoice_webhook(request: Request):
+# Serve the UI
+@app.get("/", response_class=HTMLResponse)
+async def serve_ui():
+    return Path("src/templates/index.html").read_text()
+
+# PDF Upload and Parsing Route
+@app.post("/upload")
+async def upload_pdf(file: UploadFile = File(...)):
     try:
-        invoice_data = await request.json()
-        print("Received Invoice Webhook:")
+        file_path = f"temp_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
 
-        extracted_data = {}
+        # Extract text from PDF
+        extracted_text = extract_text_from_pdf(file_path)
 
-        # ✅ Dynamically extract and print all fields
-        for key, value in invoice_data.items():
-            print(f"{key}: {value}")
-            extracted_data[key] = value  # Store all key-value pairs
+        return {"status": "success", "extracted_text": extracted_text}
 
-        return {"status": "success", "message": "Webhook data received", "data": extracted_data}
-    
     except Exception as e:
-        print(f"Error processing webhook: {e}")
         return {"status": "error", "message": str(e)}
+
+# Function to Extract Text from PDF
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with fitz.open(pdf_path) as pdf_doc:
+        for page in pdf_doc:
+            text += page.get_text("text") + "\n"
+    return text.strip()
