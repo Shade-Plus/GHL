@@ -1,39 +1,54 @@
 from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import HTMLResponse
-import fitz  # PyMuPDF
+from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
-import sys
+import shutil
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
+import pdf_formatter  # Import the PDF processing module
 
 app = FastAPI()
+
+UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")  # Use absolute path
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure upload directory exists
 
 # Serve the UI
 @app.get("/", response_class=HTMLResponse)
 async def serve_ui():
     return Path("src/templates/index.html").read_text()
 
-# PDF Upload and Parsing Route
+# PDF Upload and Processing Route
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
+    """
+    Uploads a PDF file, extracts text, and returns structured invoice data.
+    """
     try:
-        file_path = f"temp_{file.filename}"
+        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
         with open(file_path, "wb") as f:
-            f.write(await file.read())
+            shutil.copyfileobj(file.file, f)
 
-        # Extract text from PDF
-        extracted_text = extract_text_from_pdf(file_path)
+        # Extract text using pdf_formatter
+        extracted_text = pdf_formatter.extract_text_from_pdf(file_path)
 
-        return {"status": "success", "extracted_text": extracted_text}
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "invoice_data": extracted_text
+        }
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# Function to Extract Text from PDF
-def extract_text_from_pdf(pdf_path):
-    text = ""
-    with fitz.open(pdf_path) as pdf_doc:
-        for page in pdf_doc:
-            text += page.get_text("text") + "\n"
-    return text.strip()
+# Delete Uploaded PDF
+@app.delete("/delete/{filename}")
+async def delete_pdf(filename: str):
+    """
+    Deletes the specified PDF file from the uploads folder.
+    """
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return JSONResponse(content={"status": "success", "message": f"Deleted {filename}"})
+    else:
+        return JSONResponse(content={"status": "error", "message": "File not found"}, status_code=404)
+
