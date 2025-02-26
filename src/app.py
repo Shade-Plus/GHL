@@ -3,17 +3,6 @@ import json
 
 app = FastAPI()
 
-# Add homepage to prevent 404
-@app.get("/")
-def home():
-    return {"message": "Welcome to the Invoice Processing API"}
-
-# GET Request Handler for Debugging
-@app.get("/webhook/invoice")
-def webhook_debug():
-    return {"message": "Webhook is active, but use POST to send data"}
-
-# Webhook Route to Receive Invoices from GHL (POST)
 @app.post("/webhook/invoice")
 async def receive_invoice_webhook(request: Request):
     try:
@@ -21,14 +10,14 @@ async def receive_invoice_webhook(request: Request):
         print("Received Invoice Webhook:", json.dumps(invoice_data, indent=4))
 
         # Extract fields from GHL webhook
-        invoice_url = invoice_data.get("invoice_url1") or invoice_data.get("invoice_url2")
-        contact_name = invoice_data.get("contact", {}).get("name")
-        amount = invoice_data.get("amount")
+        invoice_url = invoice_data.get("Invoice Url") or invoice_data.get("customData", {}).get("Invoice url")
+        contact_name = invoice_data.get("customData", {}).get("contact name")
+        amount = invoice_data.get("amount")  # This is missing from the payload
 
-        # Print extracted values for debugging
-        print(f"Invoice URL: {invoice_url}")
-        print(f"Contact Name: {contact_name}")
-        print(f"Amount: {amount}")
+        # Debugging: Print extracted values
+        print(f"Extracted Invoice URL: {invoice_url}")
+        print(f"Extracted Contact Name: {contact_name}")
+        print(f"Extracted Amount: {amount}")
 
         return {"status": "success", "message": "Invoice received", "invoice_url": invoice_url, "contact_name": contact_name, "amount": amount}
     
