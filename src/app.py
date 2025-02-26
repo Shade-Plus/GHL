@@ -1,9 +1,14 @@
+import sys
+import os
+
+# Ensure the script can find `pdf_formatter.py`
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
 import shutil
-import os
-import pdf_formatter  # Import the PDF processing module
+import pdf_formatter  # Import PDF processing logic
 
 app = FastAPI()
 
