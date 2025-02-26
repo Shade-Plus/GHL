@@ -3,6 +3,17 @@ import json
 
 app = FastAPI()
 
+# Add homepage to prevent 404
+@app.get("/")
+def home():
+    return {"message": "Welcome to the Invoice Processing API"}
+
+# GET Request Handler for Debugging
+@app.get("/webhook/invoice")
+def webhook_debug():
+    return {"message": "Webhook is active, but use POST to send data"}
+
+# Webhook Route to Receive Invoices from GHL (POST)
 @app.post("/webhook/invoice")
 async def receive_invoice_webhook(request: Request):
     try:
